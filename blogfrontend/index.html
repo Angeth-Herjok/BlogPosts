@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Blog API Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            /* background-color: #f2f2f2; */
+            background-color: #a7cfdf;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        #mainContainer {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+        }
+        #blogList {
+            flex: 1;
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            background-color: white;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        .post-details {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #777;
+        }
+        .post-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        form {
+            width: 100%;
+            max-width: 800px;
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        label, input[type="text"], textarea {
+            display: block;
+            width: 100%;
+            font-size: 16px;
+        }
+        input[type="text"], textarea {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: blue;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: black;
+        }
+        #editForm {
+            display: none;
+            flex-basis: 50%;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Blog Posts</h1>
+    <form id="createForm">
+        <label for="createTitle">Title:</label>
+        <input type="text" id="createTitle" required>
+        <label for="createContent">Content:</label>
+        <textarea id="createContent" required></textarea>
+        <label for="createAuthor">Author:</label>
+        <input type="text" id="createAuthor" required>
+        <button type="submit">Create Post</button>
+    </form>
+    <div id="mainContainer">
+        <ul id="blogList"></ul>
+        <form id="editForm">
+            <input type="hidden" id="editPostId">
+            <label for="editTitle">Title:</label>
+            <input type="text" id="editTitle" required>
+            <label for="editContent">Content:</label>
+            <textarea id="editContent" required></textarea>
+            <label for="editAuthor">Author:</label>
+            <input type="text" id="editAuthor" required>
+            <button type="submit">Save Changes</button>
+        </form>
+    </div>
+    <script>
+        const blogList = document.getElementById('blogList');
+        const createForm = document.getElementById('createForm');
+        const editForm = document.getElementById('editForm');
+        const editPostId = document.getElementById('editPostId');
+        const editTitle = document.getElementById('editTitle');
+        const editContent = document.getElementById('editContent');
+        const editAuthor = document.getElementById('editAuthor');
+        function fetchBlogPosts() {
+            fetch('http://localhost:8000/')
+                .then(response => response.json())
+                .then(data => {
+                    blogList.innerHTML = '';
+                    data.forEach(post => {
+                        const listItem = document.createElement('li');
+                        const titleElement = document.createElement('h3');
+                        titleElement.textContent = post.title;
+                        listItem.appendChild(titleElement);
+                        const contentElement = document.createElement('p');
+                        contentElement.textContent = post.content;
+                        listItem.appendChild(contentElement);
+                        const detailsElement = document.createElement('p');
+                        detailsElement.classList.add('post-details');
+                        const formattedDate = new Date(post.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                        detailsElement.textContent = `Author: ${post.author} | Created at: ${formattedDate}`;
+                        listItem.appendChild(detailsElement);
+                        const actionsElement = document.createElement('div');
+                        actionsElement.classList.add('post-actions');
+                        const editButton = document.createElement('button');
+                        editButton.textContent = 'Edit';
+                        editButton.addEventListener('click', () => showEditForm(post));
+                        actionsElement.appendChild(editButton);
+                        const deleteButton = document.createElement('button');
+                        deleteButton.textContent = 'Delete';
+                        deleteButton.addEventListener('click', () => deleteBlogPost(post.id));
+                        actionsElement.appendChild(deleteButton);
+                        listItem.appendChild(actionsElement);
+                        blogList.appendChild(listItem);
+                    });
+                })
+                .catch(error => console.error('Error fetching blog posts:', error));
+        }
+        function showEditForm(post) {
+            editPostId.value = post.id;
+            editTitle.value = post.title;
+            editContent.value = post.content;
+            editAuthor.value = post.author;
+            editForm.style.display = 'block';
+        }
+        function hideEditForm() {
+            editForm.style.display = 'none';
+        }
+        function updateBlogPost(data) {
+            const postId = editPostId.value;
+            fetch(`http://localhost:8000/posts/${postId}/`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Post updated:', data);
+                hideEditForm();
+                fetchBlogPosts();
+            })
+            .catch(error => console.error(`Error updating post with ID ${postId}:`, error));
+        }
+        function createBlogPost(data) {
+            fetch('http://localhost:8000/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('New post created:', data);
+                fetchBlogPosts();
+            })
+            .catch(error => console.error('Error creating new post:', error));
+        }
+        function deleteBlogPost(postId) {
+            fetch(`http://localhost:8000/posts/${postId}/`, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (response.status === 204) {
+                    console.log(`Post with ID ${postId} deleted.`);
+                    fetchBlogPosts();
+                } else {
+                    console.error(`Error deleting post with ID ${postId}.`);
+                }
+            })
+            .catch(error => console.error(`Error deleting post with ID ${postId}:`, error));
+        }
+        editForm.addEventListener('submit', event => {
+            event.preventDefault();
+            const updatedPostData = {
+                title: editTitle.value,
+                content: editContent.value,
+                author: editAuthor.value
+            };
+            updateBlogPost(updatedPostData);
+        });
+        // Event listener for the create form
+        createForm.addEventListener('submit', event => {
+            event.preventDefault();
+            const newPostData = {
+                title: createTitle.value,
+                content: createContent.value,
+                author: createAuthor.value
+            };
+            createBlogPost(newPostData);
+        });
+        // Fetch blog posts initially
+        fetchBlogPosts();
+    </script>
+</body>
+</html>
